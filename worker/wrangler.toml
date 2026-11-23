@@ -1,0 +1,7 @@
+name = "chatbot-scoping-coach-api"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Only this page may call the coach. Add more origins separated by commas.
+ALLOWED_ORIGINS = "https://zeelmtech-sys.github.io"
