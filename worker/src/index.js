@@ -18,31 +18,33 @@ function today() {
 
 async function bump(env, event) {
   if (!env.COACH_STATS || !EVENTS.includes(event)) return;
-  try {
-    const key = `${today()}:${event}`;
-    const n = parseInt((await env.COACH_STATS.get(key)) || "0", 10);
-    await env.COACH_STATS.put(key, String(n + 1));
-  } catch {}
+  // One key per event, so many people at once never overwrite each other's count.
+  try { await env.COACH_STATS.put(`e:${today()}:${event}:${crypto.randomUUID()}`, "", { expirationTtl: 60 * 60 * 24 * 365 }); } catch {}
 }
 
 async function stats(env) {
   const days = {};
   const totals = Object.fromEntries(EVENTS.map((e) => [e, 0]));
   if (env.COACH_STATS) {
-    const list = await env.COACH_STATS.list({ limit: 1000 });
-    for (const { name } of list.keys) {
-      const [day, event] = name.split(":");
-      const n = parseInt((await env.COACH_STATS.get(name)) || "0", 10);
-      (days[day] ||= {})[event] = n;
-      if (event in totals) totals[event] += n;
-    }
+    let cursor;
+    do {
+      const page = await env.COACH_STATS.list({ prefix: "e:", cursor });
+      for (const { name } of page.keys) {
+        const [, day, event] = name.split(":");
+        if (!(event in totals)) continue;
+        days[day] ||= {};
+        days[day][event] = (days[day][event] || 0) + 1;
+        totals[event] += 1;
+      }
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
   }
   const rows = Object.keys(days).sort().reverse().map((d) =>
     `<tr><td>${d}</td>${EVENTS.map((e) => `<td>${days[d][e] || 0}</td>`).join("")}</tr>`).join("");
   return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Coach usage</title><style>body{font-family:system-ui,sans-serif;margin:24px;color:#231f20}table{border-collapse:collapse}td,th{padding:6px 12px;border-bottom:1px solid #ddd;text-align:right}td:first-child,th:first-child{text-align:left}p{color:#6b6768}</style>
 <h1>Scoping coach usage</h1>
-<p>Visits = page opens (QR scans and link clicks). Started = conversations with the AI coach. Messages = answers people sent. Reports = AI scoping reports given. Guided = reports from the fallback guided mode. Dates in IST.</p>
+<p>Counts can take a minute to appear. Visits = page opens (QR scans and link clicks). Started = conversations with the AI coach. Messages = answers people sent. Reports = AI scoping reports given. Guided = reports from the fallback guided mode. Dates in IST.</p>
 <table><tr><th>Day</th><th>Visits</th><th>Started</th><th>Messages</th><th>Reports</th><th>Guided</th></tr>
 <tr><th>Total</th>${EVENTS.map((e) => `<th>${totals[e]}</th>`).join("")}</tr>${rows}</table>`;
 }
