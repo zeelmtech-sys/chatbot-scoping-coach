@@ -237,6 +237,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-
 
   if (!API_URL) toGuided(false);
 
+  // Anonymous usage counts (no answers are sent): a page open, and a guided-mode report.
+  function track(event) {
+    if (!API_URL) return;
+    try {
+      fetch(API_URL, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ event }), keepalive: true }).catch(() => {});
+    } catch {}
+  }
+  track("visit");
+
   const pad = (n) => String(n).padStart(2, "0");
 
   function setStage(n) {
@@ -392,6 +402,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--teal); outline-
 
   function finish() {
     done = true;
+    if (mode === "guided") track("guided_report");
     setStage(N);
     form.hidden = true;
 

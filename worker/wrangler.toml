@@ -5,3 +5,8 @@ compatibility_date = "2026-11-01"
 [vars]
 # Only this page may call the coach. Add more origins separated by commas.
 ALLOWED_ORIGINS = "https://zeelmtech-sys.github.io"
+
+# Usage counters: page visits, conversations, messages and reports, per day (IST).
+[[kv_namespaces]]
+binding = "COACH_STATS"
+id = "f3a22565551c4b62bc1884436d00a4b2"
